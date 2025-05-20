@@ -76,7 +76,7 @@ Komponen ini berisi kode firmware yang berjalan pada perangkat keras sensor (ESP
 ## Struktur Proyek
 
 Berikut adalah struktur direktori utama dari proyek ini:
-.
+```.
 ├── CoffeeMonitor/                  # Aplikasi Backend & Dashboard Blazor (.NET)
 │   ├── Components/                 # Komponen Blazor
 │   │   ├── Layout/                 # Komponen tata letak (misalnya, MainLayout.razor, NavMenu.razor)
@@ -111,7 +111,7 @@ Berikut adalah struktur direktori utama dari proyek ini:
 │   └── IoT_Sensor.ino              # Sketsa Arduino/ESP untuk sensor
 │
 └── README.md                       # File README utama proyek
-
+```
 ## Cara Menjalankan
 
 1.  **IoT_Sensor (Perangkat IoT/ESP32):**
