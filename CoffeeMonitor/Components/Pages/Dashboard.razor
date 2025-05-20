@@ -1,0 +1,234 @@
+@page "/dashboard"
+@inject ISensorDataRepository SensorRepository
+@inject ILogger<Dashboard> Logger
+@using CoffeeMonitor.Data.Models
+@using CoffeeMonitor.Data.Repositories
+@implements IDisposable // Untuk membersihkan timer
+
+<PageTitle>IoT Dashboard</PageTitle>
+
+<MudText Typo="Typo.h5">Sensor Data</MudText>
+<MudText Typo="Typo.subtitle1" GutterBottom="true">Last Update: @latestData.ReceivedAt.ToLocalTime().ToString("g")</MudText>
+
+@if (latestData != null)
+{
+    <MudGrid Spacing="3" Justify="Justify.SpaceBetween">
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4" Elevation="3" Style="height:100%">
+                <MudText Typo="Typo.h6" Align="Align.Center">Temperature</MudText>
+                <div class="d-flex justify-center my-4">
+                    <canvas data-type="linear-gauge"
+                            data-width="400"
+                            data-height="150"
+                            data-units="°C"
+                            data-value="@Convert.ToInt32(latestData.Temperature)"
+                            data-value-int="2"
+                            data-value-dec="2"
+                            data-min-value="20"
+                            data-max-value="40"
+                            data-major-ticks="20,25,30,35,40"
+                            data-highlights='[ {"from": 30, "to": 40, "color": "rgba(200, 50, 50, .75)"} ]'
+                            data-border-shadow-width="0"
+                            data-borders="false">
+                    </canvas>
+                </div>
+                <MudText Align="Align.Center" Typo="Typo.subtitle2">@latestData.Temperature.ToString("N2") °C</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4" Elevation="3" Style="height:100%">
+                <MudText Typo="Typo.h6" Align="Align.Center">Humidity</MudText>
+                <div class="d-flex justify-center my-4">
+                    <canvas data-type="radial-gauge"
+                            data-width="200"
+                            data-height="200"
+                            data-units="%"
+                            data-value="@Convert.ToInt32(latestData.Humidity)"
+                            data-value-int="2"
+                            data-value-dec="2"
+                            data-min-value="0"
+                            data-max-value="100"
+                            data-major-ticks="0,10,20,30,40,50,60,70,80,90,100"
+                            data-value-box="true"
+                            data-animation-rule="bounce"
+                            data-animation-duration="500"
+                            data-font-value="Led"
+                            data-animated-value="true">
+                    </canvas>
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4" Elevation="3" Style="height:100%">
+                <MudText Typo="Typo.h6" Align="Align.Center">Fan Status</MudText>
+                <div class="d-flex justify-center my-4">
+                    @if (latestData.FanStatus?.Equals("ON", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        <MudChip T="string" Icon="@Icons.Material.Filled.Power" Color="Color.Success" Size="Size.Large">ON</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Icon="@Icons.Material.Filled.PowerOff" Color="Color.Error" Size="Size.Large">OFF</MudChip>
+                    }
+                </div>                
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+    <MudText Align="Align.Center">Loading latest data...</MudText>
+}
+
+
+<MudText Typo="Typo.h5" Class="mt-6" GutterBottom="true">Historical Data (Last 12 Hours)</MudText>
+
+@if (historicalDataLoaded)
+{
+    @if (timeSeries != null && timeSeries.Any())
+    {
+        <MudGrid Spacing="3" Justify="Justify.SpaceBetween">
+            <MudItem xs="12" sm="6">
+                <MudPaper Class="pa-4" Elevation="3" Style="height:100%">
+                    <MudText Typo="Typo.h6" Class="mt-4" GutterBottom="true">Temperature & Humidity History</MudText>
+                    <MudTimeSeriesChart ChartSeries="@timeSeries"
+                                        ChartOptions="@timeChartOptions"
+                                        XAxisKey="@nameof(SensorDataRecord.ReceivedAt)"
+                                        Width="600"
+                                        Height="350"
+                                        InputData="@historicalData"
+                                        IncludeGridLines="true"
+                                        TimeLabelSpacing="@TimeSpan.FromMinutes(60)">
+                    </MudTimeSeriesChart>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudPaper Class="pa-4" Elevation="3" Style="height:100%">
+                    <MudText Typo="Typo.h6" Class="mt-4" GutterBottom="true">Fan Status History</MudText>
+                    <MudChart ChartType="ChartType.Line"
+                              ChartSeries="@fanStatusSeries"
+                              XAxisLabels="@xAxisLabels"
+                              ChartOptions="@fanChartOptions"
+                              Width="600" />
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+    else
+    {
+        <MudText>No historical data available for the last 12 hours.</MudText>
+    }
+}
+else
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+    <MudText Align="Align.Center">Loading historical data...</MudText>
+}
+
+
+@code {
+    private SensorDataRecord? latestData;
+    private List<SensorDataRecord> historicalData = new List<SensorDataRecord>();
+    private List<TimeSeriesChartSeries> timeSeries = new List<TimeSeriesChartSeries>();
+    private List<ChartSeries> fanStatusSeries = new List<ChartSeries>();
+    private string[] xAxisLabels = Array.Empty<string>();
+    private bool historicalDataLoaded = false;
+    private System.Threading.Timer? refreshTimer;
+
+    private const int REFRESH_TIME = 60;
+
+    private ChartOptions timeChartOptions = new ChartOptions
+        {
+            YAxisTicks = 5,
+            LineStrokeWidth = 2
+        };
+
+    private ChartOptions fanChartOptions = new ChartOptions
+        {
+            YAxisTicks = 1 // Hanya perlu tick untuk 0 dan 1
+        };
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        // Set timer untuk refresh data setiap 60 detik
+        refreshTimer = new System.Threading.Timer(async _ =>
+        {
+            await LoadData();
+            await InvokeAsync(StateHasChanged); // Trigger UI update
+        }, null, TimeSpan.FromSeconds(REFRESH_TIME), TimeSpan.FromSeconds(REFRESH_TIME));
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            // Ambil data terbaru
+            var recent = await SensorRepository.GetRecentSensorDataAsync(1);
+            latestData = recent.FirstOrDefault();
+
+            // Ambil data 12 jam terakhir
+            var endTime = DateTime.UtcNow;
+            var startTime = endTime.AddHours(-12);
+            historicalData = (await SensorRepository.GetSensorDataByDateRangeAsync(startTime, endTime)).ToList();
+
+            PrepareChartData();
+            historicalDataLoaded = true; // Tandai bahwa data historis sudah (atau selesai dicoba) dimuat
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading sensor data for dashboard.");
+            // Handle error (misalnya tampilkan pesan error di UI)
+            historicalDataLoaded = true; // Tetap tandai selesai agar loading indicator hilang
+        }
+    }
+
+    private void PrepareChartData()
+    {
+        if (historicalData == null || !historicalData.Any())
+        {
+            // chartSeries = new List<ChartSeries>();
+            timeSeries = new List<TimeSeriesChartSeries>();
+            fanStatusSeries = new List<ChartSeries>();
+            xAxisLabels = Array.Empty<string>();
+            return;
+        }
+
+        // Urutkan berdasarkan waktu jika belum
+        historicalData = historicalData.OrderBy(d => d.ReceivedAt).ToList();
+
+        // Siapkan data untuk chart suhu dan kelembaban
+        timeSeries = new List<TimeSeriesChartSeries>()
+        {
+            new TimeSeriesChartSeries() {
+                Name = "Temperature (°C)",
+                Data = historicalData.Select(x => new TimeSeriesChartSeries.TimeValue(x.ReceivedAt.ToLocalTime(), x.Temperature)).ToList() },
+            new TimeSeriesChartSeries() {
+                Name = "Humidity (%)",
+                Data = historicalData.Select(x => new TimeSeriesChartSeries.TimeValue(x.ReceivedAt.ToLocalTime(), x.Humidity)).ToList() }
+        };
+
+        // Siapkan data untuk chart status kipas (ON=1, OFF=0)
+        fanStatusSeries = new List<ChartSeries>()
+        {
+            new ChartSeries() {
+                Name = "Fan Status (1=ON, 0=OFF)",
+                Data = historicalData.Select(d => d.FanStatus?.Equals("ON", StringComparison.OrdinalIgnoreCase) == true ? 1.0 : 0.0).ToArray()
+            }
+        };
+
+        // Siapkan label sumbu X (misalnya setiap beberapa data point)
+        int labelInterval = Math.Max(1, historicalData.Count / 10); // Tampilkan sekitar 10 label
+        xAxisLabels = historicalData
+            .Select((data, index) => index % labelInterval == 0 ? data.ReceivedAt.ToLocalTime().ToString("hh:mm") : "")
+            .ToArray();
+    }
+
+    // Implementasi IDisposable untuk membersihkan timer
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+}
