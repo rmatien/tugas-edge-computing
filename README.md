@@ -58,7 +58,6 @@ Aplikasi `EdgeNode` berjalan pada perangkat edge (Raspberry Pi) untuk mengumpulk
 *   `paho-mqtt` (untuk komunikasi MQTT)
 *   `requests` (untuk mengirim data ke webhook)
 *   `sqlite3` (untuk database lokal)
-*   `aiohttp` (kemungkinan untuk operasi asinkron, meskipun penggunaan utamanya mungkin untuk `requests` dalam konteks ini)
 
 ### 3. IoT_Sensor (Firmware Sensor Fisik)
 
@@ -103,9 +102,9 @@ Berikut adalah struktur direktori utama dari proyek ini:
 │   │   └── edge_data.db            # File database SQLite EdgeNode
 │   ├── logs/                       # Direktori untuk file log EdgeNode
 │   │   └── mqtt_service.log        # Contoh file log
-│   ├── .python-version             # Menentukan versi Python yang digunakan (misalnya, untuk pyenv)
+│   ├── .python-version             # Menentukan versi Python yang digunakan
 │   ├── main.py                     # Skrip utama untuk EdgeNode
-│   └── pyproject.toml              # File konfigurasi proyek Python (misalnya, untuk Poetry atau PEP 621)
+│   └── pyproject.toml              # File konfigurasi proyek Python
 │
 ├── IoT_Sensor/                     # Kode firmware untuk sensor fisik
 │   └── IoT_Sensor.ino              # Sketsa Arduino/ESP untuk sensor
@@ -125,13 +124,13 @@ Berikut adalah struktur direktori utama dari proyek ini:
 2.  **EdgeNode:**
     *   Pastikan Python dan dependensi (`paho-mqtt`, `requests`) terinstal.
     *   Konfigurasi variabel lingkungan atau konstanta dalam `main.py` (MQTT broker, URL webhook, API key).
-    *   Jalankan `python main.py` pada perangkat edge (misal: Raspberry Pi).
+    *   Jalankan `python main.py` pada perangkat edge.
     *   EdgeNode akan menerima data dari MQTT, mengontrol kipas, menyimpan data lokal, dan mengirim data ke backend.
 
 3.  **CoffeeMonitor:**
     *   Pastikan .NET SDK terinstal.
     *   Konfigurasi `appsettings.json` dengan string koneksi SQLite yang benar dan API key untuk webhook.
-    *   Jalankan aplikasi Blazor (misalnya, menggunakan `dotnet run` dari direktori `CoffeeMonitor`).
+    *   Jalankan aplikasi Blazor.
     *   Akses dashboard melalui browser untuk memantau data secara real-time dan historis.
 
 ## Pengembangan Lebih Lanjut (Potensi)
@@ -141,3 +140,6 @@ Berikut adalah struktur direktori utama dari proyek ini:
 *   Penambahan fitur notifikasi (misalnya, email atau push notification) untuk kondisi alarm.
 *   Penggunaan broker MQTT yang lebih aman dan terkelola.
 *   Visualisasi data yang lebih canggih di dashboard.
+
+## Dokumentasi
+[Video Proyek](https://youtu.be/ROmxKGmPCYU)
